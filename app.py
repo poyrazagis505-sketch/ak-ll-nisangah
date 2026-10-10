@@ -1,87 +1,103 @@
-from flask import Flask, request, render_template_string
+import streamlit as st
+import pandas as pd
 
-app = Flask(__name__)
+st.set_page_config(page_title="Mühimmat Takip Sistemi", layout="wide")
 
-magazines = {
-    "NFC_001": {"name": "A01", "rounds": 30},
-    "NFC_002": {"name": "A02", "rounds": 28},
-}
+if "magazines" not in st.session_state:
+    st.session_state.magazines = {}
 
-events = []
+if "events" not in st.session_state:
+    st.session_state.events = []
 
-@app.route("/")
-def index():
-    return render_template_string("""
-    <!doctype html>
-    <html>
-    <head>
-        <title>Mühimmat Takip</title>
-        <style>
-            body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 30px; }
-            .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.08); margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-            input, button { padding: 10px; margin: 5px 0; }
-            button { background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; }
-        </style>
-    </head>
-    <body>
-        <div class="card">
-            <h1>📦 Elektronik Mühimmat Takip Sistemi</h1>
+def add_magazine(nfc_id, name, rounds):
+    if nfc_id in st.session_state.magazines:
+        return False, "Bu NFC ID zaten kayıtlı."
+    st.session_state.magazines[nfc_id] = {
+        "name": name,
+        "initial": rounds,
+        "current": rounds,
+        "fired": 0
+    }
+    st.session_state.events.insert(0, f"✅ {name} ({nfc_id}) eklendi.")
+    return True, "Şarjör eklendi."
 
-            <form method="POST" action="/add">
-                <input name="nfc_id" placeholder="NFC ID" value="NFC_003" />
-                <input name="name" placeholder="Şarjör Adı" value="A03" />
-                <input name="rounds" type="number" value="30" />
-                <button type="submit">Şarjör Ekle</button>
-            </form>
-        </div>
+def fire_magazine(nfc_id):
+    if nfc_id not in st.session_state.magazines:
+        return False, "Şarjör bulunamadı."
+    mag = st.session_state.magazines[nfc_id]
+    if mag["current"] <= 0:
+        st.session_state.events.insert(0, f"⚠️ {mag['name']} boş şarjör.")
+        return False, "Şarjör boş."
+    mag["current"] -= 1
+    mag["fired"] += 1
+    st.session_state.events.insert(0, f"💥 {mag['name']} ateş edildi. Kalan: {mag['current']}")
+    return True, "Atış başarılı."
 
-        <div class="card">
-            <h2>Şarjör Listesi</h2>
-            <table>
-                <tr><th>NFC</th><th>Ad</th><th>Kalan Fişek</th><th>Aksiyon</th></tr>
-                {% for nfc, mag in magazines.items() %}
-                <tr>
-                    <td>{{ nfc }}</td>
-                    <td>{{ mag['name'] }}</td>
-                    <td>{{ mag['rounds'] }}</td>
-                    <td><a href="/fire/{{ nfc }}">Ateş Et</a></td>
-                </tr>
-                {% endfor %}
-            </table>
-        </div>
+def reload_magazine(nfc_id):
+    if nfc_id not in st.session_state.magazines:
+        return False, "Şarjör bulunamadı."
+    mag = st.session_state.magazines[nfc_id]
+    mag["current"] = mag["initial"]
+    mag["fired"] = 0
+    st.session_state.events.insert(0, f"🔄 {mag['name']} dolduruldu.")
+    return True, "Şarjör dolduruldu."
 
-        <div class="card">
-            <h2>Olay Geçmişi</h2>
-            <ul>
-                {% for e in events %}
-                    <li>{{ e }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-    </body>
-    </html>
-    """, magazines=magazines, events=events)
+st.title("📦 Elektronik Mühimmat Takip Sistemi")
+st.caption("Sandbox simülasyonu — şarjör kimliği, fişek takibi, olay geçmişi")
 
-@app.route("/add", methods=["POST"])
-def add_magazine():
-    nfc = request.form["nfc_id"]
-    name = request.form["name"]
-    rounds = int(request.form["rounds"])
-    magazines[nfc] = {"name": name, "rounds": rounds}
-    events.append(f"{nfc} şarjörü eklendi.")
-    return index()
+with st.sidebar:
+    st.header("⚙️ Kontrol Paneli")
 
-@app.route("/fire/<nfc_id>")
-def fire(nfc_id):
-    if nfc_id in magazines:
-        if magazines[nfc_id]["rounds"] > 0:
-            magazines[nfc_id]["rounds"] -= 1
-            events.append(f"{nfc_id} ateş edildi. Kalan: {magazines[nfc_id]['rounds']}")
-        else:
-            events.append(f"{nfc_id} boş şarjör.")
-    return index()
+    with st.form("add_form"):
+        nfc_id = st.text_input("NFC ID", "NFC_001")
+        name = st.text_input("Şarjör Adı", "A01")
+        rounds = st.number_input("Fişek sayısı", min_value=1, max_value=100, value=30)
+        submitted = st.form_submit_button("Şarjör Ekle")
 
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+        if submitted:
+            ok, msg = add_magazine(nfc_id, name, int(rounds))
+            if ok:
+                st.success(msg)
+            else:
+                st.error(msg)
+
+    st.divider()
+
+    mags = st.session_state.magazines
+    if mags:
+        selected = st.selectbox("Şarjör seç", list(mags.keys()))
+        if st.button("Ateş Et"):
+            ok, msg = fire_magazine(selected)
+            if ok:
+                st.success(msg)
+            else:
+                st.warning(msg)
+        if st.button("Doldur"):
+            ok, msg = reload_magazine(selected)
+            if ok:
+                st.success(msg)
+            else:
+                st.warning(msg)
+
+stats = []
+for nfc_id, mag in st.session_state.magazines.items():
+    stats.append({
+        "NFC ID": nfc_id,
+        "Şarjör": mag["name"],
+        "Kalan": mag["current"],
+        "Toplam": mag["initial"],
+        "Atılan": mag["fired"]
+    })
+
+if stats:
+    st.subheader("📋 Şarjör listesi")
+    st.dataframe(pd.DataFrame(stats), use_container_width=True)
+else:
+    st.info("Henüz şarjör eklenmedi. Sol taraftan ekleyin.")
+
+st.subheader("📝 Olay geçmişi")
+if st.session_state.events:
+    for e in st.session_state.events[:20]:
+        st.write(e)
+else:
+    st.write("Henüz olay yok.")
