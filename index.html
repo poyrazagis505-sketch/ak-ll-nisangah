@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOLO-SIGHT — Akıllı Şarjör İzleme Simülatörü</title>
+<link rel="icon" href="assets/icon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="paused">
+<header class="top">
+  <div class="brand"><svg width="28" height="28" viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="none" stroke="#19e6c1" stroke-width="1.5"/><circle cx="16" cy="16" r="5" fill="none" stroke="#7dff6a" stroke-width="1.5"/><path d="M16 1v8M16 23v8M1 16h8M23 16h8" stroke="#fff" stroke-width="1"/></svg>
+    <div><b>HOLO-SIGHT</b><small>Akıllı Şarjör İzleme Simülatörü</small></div></div>
+  <div class="simtag" title="Bu uygulama tamamen yazılım simülasyonudur">SİMÜLASYON — gerçek donanım verisi değildir</div>
+  <button class="ghost" id="btnHelp" aria-label="Tanıtımı aç">? Yardım</button>
+</header>
+
+<main class="grid">
+  <aside class="panel left">
+    <h2>Sistem kontrolleri <i class="info" title="Simülasyonu yönetin, modül takın ve sensör durumlarını değiştirin.">i</i></h2>
+    <dl class="stats">
+      <dt>Sistem durumu</dt><dd id="stSys">—</dd>
+      <dt>Simülasyon</dt><dd id="stSim">—</dd>
+      <dt>Takılı modül</dt><dd id="stMod">—</dd>
+      <dt>Kayıtlı modül</dt><dd id="stCount">—</dd>
+      <dt>Aktif sensör</dt><dd id="stSens">—</dd>
+    </dl>
+    <div class="btns">
+      <button id="btnStart" class="pri">▶ Başlat</button>
+      <button id="btnPause">❚❚ Duraklat</button>
+      <button id="btnReset" class="warn">↺ Sıfırla</button>
+    </div>
+    <label class="lbl" for="selMod">Modül seç</label>
+    <select id="selMod"></select>
+    <div class="btns">
+      <button id="btnAttach" class="pri">⬆ Modülü tak</button>
+      <button id="btnDetach">⬇ Modülü çıkar</button>
+    </div>
+    <div class="btns">
+      <button id="btnDec" title="Simülasyon: sayacı 1 azalt">− 1</button>
+      <button id="btnInc" title="Simülasyon: sayacı 1 artır">+ 1</button>
+      <button id="btnCounter">Sayacı aç/kapat</button>
+    </div>
+    <h3>Sensörler</h3>
+    <div id="sensList"></div>
+    <div class="btns">
+      <button id="btnCycle">Seçili sensör: sonraki durum</button>
+      <button id="btnSettings">⚙ Ayarlar</button>
+    </div>
+  </aside>
+
+  <section class="panel center">
+    <h2>2B mekanik demonstrasyon <i class="info" title="Temsili eğitim modelidir; gerçek bir ürünün çizimi değildir. Bileşenlerin üzerine gelin.">i</i></h2>
+    <svg id="model" viewBox="0 0 600 430" role="img" aria-label="Temsili modül ve sensör modeli">
+      <defs>
+        <linearGradient id="gBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3139"/><stop offset="1" stop-color="#171b20"/></linearGradient>
+        <linearGradient id="gMag" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#20463f"/><stop offset=".5" stop-color="#2f6d61"/><stop offset="1" stop-color="#1b3a35"/></linearGradient>
+        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#19e6c1" stroke-opacity=".07"/></pattern>
+        <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <rect width="600" height="430" fill="url(#grid)"/>
+      <path d="M40 24h40M40 24v40M560 24h-40M560 24v40M40 406h40M40 406v-40M560 406h-40M560 406v-40" stroke="#19e6c1" stroke-opacity=".5" fill="none"/>
+      <!-- bağlantı çizgileri -->
+      <g id="wires" fill="none" stroke-width="2">
+        <path class="wire" data-s="mag" d="M255 200 L300 200 L300 255 L335 255"/>
+        <path class="wire" data-s="nfc" d="M255 205 L285 205 L285 292 L335 292"/>
+        <path class="wire" data-s="motion" d="M235 185 L235 140 L150 140"/>
+        <path class="wire" data-s="btn" d="M275 185 L275 140 L445 140"/>
+        <path class="wire" data-s="optic" d="M255 192 L255 105 L320 105"/>
+      </g>
+      <!-- gövde -->
+      <g id="body">
+        <path d="M70 120h390a30 30 0 0 1 30 30v70a20 20 0 0 1-20 20H330v20H200v-20H90a20 20 0 0 1-20-20z" fill="url(#gBody)" stroke="#56636f"/>
+        <path d="M95 230h110v110l-30 30h-60a20 20 0 0 1-20-20z" fill="url(#gBody)" stroke="#56636f"/>
+        <rect x="320" y="238" width="80" height="14" fill="#0e1114" stroke="#56636f"/>
+        <text x="95" y="112" class="cap">TEMSİLİ GÖVDE — eğitim modeli</text>
+      </g>
+      <!-- şarjör benzeri modül -->
+      <g id="mag" class="tip" data-k="magbody">
+        <path d="M335 238h60v110a6 6 0 0 1-6 6h-48a6 6 0 0 1-6-6z" fill="url(#gMag)" stroke="#19e6c1"/>
+        <g id="magFill"></g>
+        <rect x="343" y="326" width="44" height="18" rx="3" fill="#0e1114" stroke="#7dff6a" stroke-opacity=".6"/>
+        <text id="magTag" x="365" y="339" text-anchor="middle" class="tag">---</text>
+      </g>
+      <!-- denetleyici -->
+      <g class="tip" data-k="ctrl"><rect x="225" y="185" width="60" height="30" rx="4" fill="#0e1114" stroke="#7dff6a"/><text x="255" y="204" text-anchor="middle" class="tag">MCU</text></g>
+      <!-- sensör düğümleri -->
+      <g id="nodes">
+        <g class="node tip" data-s="mag" data-k="mag" transform="translate(335 255)"><circle r="9"/><text y="-14">MD</text></g>
+        <g class="node tip" data-s="nfc" data-k="nfc" transform="translate(335 292)"><circle r="9"/><text y="-14">ID</text></g>
+        <g class="node tip" data-s="motion" data-k="motion" transform="translate(150 140)"><circle r="9"/><text y="-14">HR</text></g>
+        <g class="node tip" data-s="btn" data-k="btn" transform="translate(445 140)"><rect x="-10" y="-10" width="20" height="20" rx="4"/><text y="-16">KD</text></g>
+        <g class="node tip" data-s="optic" data-k="optic" transform="translate(320 105)"><circle r="11"/><circle r="4" class="in"/><text y="-17">OG</text></g>
+      </g>
+      <g id="scanFx" class="scanfx" transform="translate(365 300)"><circle r="10"/><circle r="10"/></g>
+      <text x="300" y="418" text-anchor="middle" class="cap">Sensör animasyonları simülasyondur; gerçek donanım verisi değildir.</text>
+    </svg>
+    <div class="legend"><span style="--c:#19e6c1">Modül algılama</span><span style="--c:#7dff6a">Kimlik etiketi</span><span style="--c:#6aa8ff">Hareket</span><span style="--c:#ffd166">Kontrol düğmesi</span><span style="--c:#ffffff">Optik gösterge</span></div>
+  </section>
+
+  <aside class="panel right">
+    <h2>Holografik optik <i class="info" title="Ana simülasyon durumunu anlık yansıtır.">i</i></h2>
+    <svg id="optic" viewBox="0 0 300 240" role="img" aria-label="Holografik optik ekranı">
+      <defs><clipPath id="clipO"><circle cx="150" cy="120" r="105"/></clipPath><radialGradient id="gO"><stop offset="0" stop-color="#19e6c1" stop-opacity=".14"/><stop offset="1" stop-color="#19e6c1" stop-opacity="0"/></radialGradient></defs>
+      <circle cx="150" cy="120" r="108" fill="url(#gO)" stroke="#19e6c1" stroke-opacity=".6"/>
+      <circle cx="150" cy="120" r="80" fill="none" stroke="#19e6c1" stroke-opacity=".35" stroke-dasharray="2 6"/>
+      <circle cx="150" cy="120" r="50" fill="none" stroke="#7dff6a" stroke-opacity=".4"/>
+      <g stroke="#fff" stroke-opacity=".7"><path d="M150 8v30M150 202v30M42 120h30M228 120h30"/></g>
+      <g id="ticks" stroke="#19e6c1" stroke-opacity=".5"></g>
+      <g clip-path="url(#clipO)"><rect class="sweep" x="30" y="-20" width="240" height="14" fill="#19e6c1" opacity=".18"/></g>
+      <g id="opLive">
+        <text id="opNum" x="150" y="130" text-anchor="middle" class="opnum">--</text>
+        <text id="opCap" x="150" y="150" text-anchor="middle" class="opsm">/ --</text>
+      </g>
+      <text id="opMsg" x="150" y="108" text-anchor="middle" class="opmsg"></text>
+      <text id="opId" x="150" y="176" text-anchor="middle" class="opid">KİMLİK: ----</text>
+      <text x="14" y="18" class="opsm">HOLO-SIGHT</text><text x="286" y="18" text-anchor="end" class="opsm" id="opSim">SİM</text>
+    </svg>
+    <dl class="stats compact">
+      <dt>Bağlantı</dt><dd id="opLink">—</dd>
+      <dt>Okuma</dt><dd id="opRead">—</dd>
+      <dt>Sayaç göstergesi</dt><dd id="opCnt">—</dd>
+    </dl>
+    <h3>Modül listesi</h3>
+    <table class="mods"><thead><tr><th>Kimlik</th><th>Kapasite</th><th>Kayıt</th><th>Bağlantı</th></tr></thead><tbody id="modBody"></tbody></table>
+  </aside>
+</main>
+
+<footer class="panel log">
+  <div class="loghead"><h2>Olay günlüğü</h2><button id="btnClearLog" class="ghost">Günlüğü temizle</button></div>
+  <ul id="logList" aria-live="polite"></ul>
+</footer>
+
+<div id="tooltip" role="tooltip"></div>
+<div id="toast" role="status"></div>
+
+<dialog id="dlgSettings">
+  <form method="dialog" id="formSet" onsubmit="return false">
+    <h2>Modül ayarları</h2>
+    <p class="hint">Kimlik biçimi: <code>ABC-123</code> (3 büyük harf, tire, 3 rakam). Kapasite 1–99; kayıtlı değer 0 ile kapasite arasında olmalı.</p>
+    <div class="setrow"><label for="modCount">Modül sayısı (1–6)</label><input id="modCount" type="number" min="1" max="6"></div>
+    <div id="setRows"></div>
+    <p id="setErr" class="err" role="alert"></p>
+    <div class="btns"><button type="button" id="setCancel">Vazgeç</button><button type="button" id="setSave" class="pri">Kaydet</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlgIntro">
+  <h2>HOLO-SIGHT'a hoş geldiniz</h2>
+  <p>Bu, şarjör kimlikli takip sisteminin çalışma mantığını anlatan <b>temsili bir yazılım simülasyonudur</b>. NFC ve sensör verileri gerçek donanımdan gelmez.</p>
+  <ol><li><b>Başlat</b>'a basın.</li><li>Bir modül seçip <b>Modülü tak</b> deyin; kimlik okuma ve kayıt yükleme adımlarını izleyin.</li><li>Orta paneldeki bileşenlerin üzerine gelerek görevlerini okuyun.</li><li>Sayacı aç/kapat, sensör durumlarını değiştir, <b>Ayarlar</b>'dan modülleri düzenleyin.</li></ol>
+  <div class="btns"><button id="introOk" class="pri">Başla</button></div>
+</dialog>
+<script src="script.js"></script>
+</body>
+</html>
